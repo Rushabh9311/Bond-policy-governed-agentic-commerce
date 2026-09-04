@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bond — Agent policies</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css?v=4">
+</head>
+<body>
+  <nav class="nav">
+    <a href="/agent-page" class="brand"><div class="mark"></div> bond</a>
+    <div class="links"><a href="/catalog-page">Catalog</a><a href="/agent-page">Ask Agent</a><a href="/audit">Audit</a><a href="/dashboard">Dashboard</a><a href="/policy-settings" class="active">Policies</a><span class="badge">TEST MODE</span></div>
+  </nav>
+  <main>
+    <div class="page-header">
+      <div>
+        <h2>Agent policy controls</h2>
+        <p>Set deterministic guardrails before Bond can spend. The AI can recommend, but these rules make the final decision.</p>
+      </div>
+      <div class="count-badge">buyer_agent_1 · active</div>
+    </div>
+
+    <div class="policy-layout">
+      <form class="policy-card" id="policyForm">
+        <h3>Spending limits</h3>
+        <p>These safeguards are evaluated on every new purchase request.</p>
+        <div class="policy-field">
+          <label for="approvalThreshold">Auto-approve up to</label>
+          <div class="currency-input"><span>₹</span><input id="approvalThreshold" type="number" min="1" value="{{ policy.requires_approval_above // 100 }}" required></div>
+          <div class="field-help">Larger purchases require a human to approve them.</div>
+        </div>
+        <div class="policy-field">
+          <label for="maxTransaction">Absolute transaction limit</label>
+          <div class="currency-input"><span>₹</span><input id="maxTransaction" type="number" min="1" value="{{ policy.max_transaction // 100 }}" required></div>
+          <div class="field-help">Bond will never buy a single item above this limit.</div>
+        </div>
+        <div class="policy-field">
+          <label for="dailyLimit">Daily agent budget</label>
+          <div class="currency-input"><span>₹</span><input id="dailyLimit" type="number" min="1" value="{{ policy.daily_limit // 100 }}" required></div>
+          <div class="field-help">Counts completed purchases made by Bond today.</div>
+        </div>
+        <div class="policy-field">
+          <label>Allowed categories</label>
+          <div class="category-options">
+            {% for category in categories %}
+            <label class="category-option"><input type="checkbox" name="category" value="{{ category }}" {% if category in policy.allowed_categories %}checked{% endif %}><span>{{ category|capitalize }}</span></label>
+            {% endfor %}
+          </div>
+          <div class="field-help">Bond blocks products outside these categories.</div>
+        </div>
+        <button class="btn policy-save" type="submit">Save policy changes</button>
+        <p class="save-note" id="saveNote" role="status"></p>
+      </form>
+
+      <aside class="policy-summary">
+        <div class="eyebrow">Decision tiers</div>
+        <h3>What Bond can do</h3>
+        <div class="tier"><strong id="autoTier">Up to ₹{{ "{:,.0f}".format(policy.requires_approval_above / 100) }}</strong><span>Auto-approved when all other rules pass</span></div>
+        <div class="tier"><strong id="approvalTier">₹{{ "{:,.0f}".format(policy.requires_approval_above / 100) }} – ₹{{ "{:,.0f}".format(policy.max_transaction / 100) }}</strong><span>Held for human approval</span></div>
+        <div class="tier"><strong>Above hard limit</strong><span>Blocked automatically — no payment can start</span></div>
+      </aside>
+    </div>
+  </main>
+  <script>
+    const form = document.getElementById('policyForm');
+    const note = document.getElementById('saveNote');
+    const approvalInput = document.getElementById('approvalThreshold');
+    const maxInput = document.getElementById('maxTransaction');
+    const rupees = value => '₹' + Number(value || 0).toLocaleString('en-IN');
+    function updateTiers() {
+      document.getElementById('autoTier').textContent = 'Up to ' + rupees(approvalInput.value);
+      document.getElementById('approvalTier').textContent = rupees(approvalInput.value) + ' – ' + rupees(maxInput.value);
+    }
+    approvalInput.addEventListener('input', updateTiers);
+    maxInput.addEventListener('input', updateTiers);
+    form.addEventListener('submit', async event => {
+      event.preventDefault();
+      note.className = 'save-note';
+      note.textContent = 'Saving…';
+      const allowed_categories = [...document.querySelectorAll('input[name="category"]:checked')].map(input => input.value);
+      const response = await fetch('/policy-settings', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({
+        approval_threshold_rupees: Number(approvalInput.value), max_transaction_rupees: Number(maxInput.value),
+        daily_limit_rupees: Number(document.getElementById('dailyLimit').value), allowed_categories
+      }) });
+      const data = await response.json();
+      if (!response.ok) { note.className = 'save-note error'; note.textContent = data.detail || 'Could not save policy changes.'; return; }
+      note.textContent = data.message;
+    });
+  </script>
+</body>
+</html>

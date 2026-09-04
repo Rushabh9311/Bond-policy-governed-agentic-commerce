@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Bond — Merchant Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css?v=4">
+</head>
+<body>
+  <nav class="nav">
+    <a href="/agent-page" class="brand"><div class="mark"></div> bond</a>
+    <div class="links"><a href="/catalog-page">Catalog</a><a href="/agent-page">Ask Agent</a><a href="/audit">Audit</a><a href="/dashboard" class="active">Dashboard</a><a href="/policy-settings">Policies</a><span class="badge">TEST MODE</span></div>
+  </nav>
+  <main>
+    <div class="page-header">
+      <div>
+        <h2>Merchant dashboard</h2>
+        <p>Real revenue and trust metrics from every purchase the agent has made.</p>
+      </div>
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-label">AI-originated orders</div>
+        <div class="stat-value">{{ ai_orders }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">AI conversion</div>
+        <div class="stat-value">{{ conversion }}%</div>
+        <div class="stat-sub">of all agent requests completed a payment</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">AI-assisted revenue</div>
+        <div class="stat-value">₹{{ "{:,.0f}".format(ai_revenue / 100) }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Average order value</div>
+        <div class="stat-value">₹{{ "{:,.0f}".format(aov / 100) }}</div>
+      </div>
+    </div>
+
+    <div class="dash-section">
+      <h3>Trust &amp; policy outcomes</h3>
+      <div class="trust-row">
+        <div class="trust-pill">
+          <div class="stat-label">Auto-approved</div>
+          <div class="stat-value">{{ pass_count }}</div>
+        </div>
+        <div class="trust-pill">
+          <div class="stat-label">Needed approval</div>
+          <div class="stat-value">{{ approval_count }}</div>
+        </div>
+        <div class="trust-pill">
+          <div class="stat-label">Blocked by policy</div>
+          <div class="stat-value">{{ fail_count }}</div>
+        </div>
+        <div class="trust-pill">
+          <div class="stat-label">Upsells accepted</div>
+          <div class="stat-value">{{ upsell_accepted }}/{{ upsell_suggested }}</div>
+        </div>
+      </div>
+    </div>
+
+    {% if category_revenue %}
+    <div class="dash-section">
+      <h3>Revenue by category</h3>
+      {% for cat, rev in category_revenue.items()|sort(attribute='1', reverse=True) %}
+      <div class="bar-row">
+        <div class="bar-label">{{ cat }}</div>
+        <div class="bar-track">
+          <div class="bar-fill" style="width:{{ (rev / max_category_revenue * 100)|round(1) }}%;"></div>
+        </div>
+        <div class="bar-value">₹{{ "{:,.0f}".format(rev / 100) }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="dash-section">
+      <h3>Opportunity</h3>
+      <div class="insight-card">
+        <div class="insight-label">Revenue opportunity</div>
+        <p class="insight-text">"{{ top_category|capitalize }}" is your top-performing AI-driven category. Promoting adjacent products in this category within the agent's catalog ranking could compound this further.</p>
+        <div class="insight-impact">Suggested action: prioritize <strong>{{ top_category }}</strong> in agent-readable catalog ranking</div>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

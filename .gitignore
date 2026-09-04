@@ -1,0 +1,16 @@
+# Environment variables — NEVER commit this, it has real API keys
+.env
+
+# Python
+__pycache__/
+*.pyc
+venv/
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bond — Catalog</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css?v=4">
+</head>
+<body>
+  <nav class="nav">
+    <a href="/agent-page" class="brand"><div class="mark"></div> bond</a>
+    <div class="links"><a href="/catalog-page" class="active">Catalog</a><a href="/agent-page">Ask Agent</a><a href="/audit">Audit</a><a href="/dashboard">Dashboard</a><a href="/policy-settings">Policies</a><span class="badge">TEST MODE</span></div>
+  </nav>
+  <main>
+    <div class="page-header">
+      <div>
+        <h2>Bond Demo Store — Full catalog</h2>
+        <p>Every product is agent-readable: structured attributes an AI buyer can reason over, not just a human-facing listing.</p>
+      </div>
+      <div class="count-badge">{{ products|length }} products</div>
+    </div>
+
+    <div class="products">
+      {% set images = {'keyboards': 'product-keyboards.png', 'accessories': 'product-accessories.png',
+                       'audio': 'product-audio.png', 'laptops': 'product-laptops.png',
+                       'storage': 'product-storage.png', 'displays': 'product-displays.png',
+                       'furniture': 'product-furniture.png'} %}
+      {% set product_images = {
+        'Mechanical Keyboard - Red Switch': 'product-mechanical-keyboard-red-switch.png',
+        'Ergonomic Wrist Rest': 'product-ergonomic-wrist-rest.png',
+        'Budget Wired Headphones': 'product-budget-wired-headphones.png',
+        'Laptop Carrying Case': 'product-laptop-carrying-case.png',
+        'USB-C Hub 7-in-1': 'product-usbc-hub.png',
+        'Desk Mat XL': 'product-desk-mat-xl.png',
+        'Webcam 1080p': 'product-webcam-1080p.png'
+      } %}
+      {% set contain_images = ['Noise Cancelling Headphones', 'Budget Wired Headphones',
+        'Laptop Stand - Aluminium', 'External SSD 1TB', 'Laptop Carrying Case',
+        'Webcam 1080p', 'Office Chair - Mesh Back'] %}
+      {% for p in products %}
+      {% set image_file = product_images.get(p.name, images.get(p.category, 'product-accessories.png')) %}
+      <article class="product">
+        <div class="product-visual">
+          <img class="{{ 'product-contain' if p.name in contain_images else '' }}" src="/static/images/{{ image_file }}" alt="{{ p.name }}" loading="lazy">
+          <span class="product-tag">{{ p.category|upper }}</span>
+          <span class="stock-pill {{ 'stock-low' if p.stock < 15 else 'stock-ok' }}">{{ p.stock }} in stock</span>
+        </div>
+        <div class="product-info">
+          <div class="product-name">{{ p.name }}</div>
+          <div class="product-price">₹{{ "{:,.2f}".format(p.price / 100) }}</div>
+          <div class="tags">
+            {% for tag in p.agent_metadata.get('best_for', []) %}
+              <span class="mini-tag">{{ tag }}</span>
+            {% endfor %}
+          </div>
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+  </main>
+</body>
+</html>

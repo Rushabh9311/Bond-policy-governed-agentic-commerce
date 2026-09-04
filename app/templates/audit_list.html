@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Bond — Audit Trail</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css?v=4">
+</head>
+<body>
+  <nav class="nav">
+    <a href="/agent-page" class="brand"><div class="mark"></div> bond</a>
+    <div class="links"><a href="/catalog-page">Catalog</a><a href="/agent-page">Ask Agent</a><a href="/audit" class="active">Audit</a><a href="/dashboard">Dashboard</a><a href="/policy-settings">Policies</a><span class="badge">TEST MODE</span></div>
+  </nav>
+  <main>
+    <div class="page-header">
+      <div>
+        <h2>Audit trail</h2>
+        <p>Every purchase intent the agent has ever made — click one to see exactly why it happened.</p>
+      </div>
+      <div style="display:flex; gap:12px; align-items:center;">
+        <div class="count-badge">{{ intents|length }} intents</div>
+        <button class="btn btn-outline" onclick="clearHistory()">Clear history</button>
+      </div>
+    </div>
+
+    <div class="audit-list">
+      {% for i in intents %}
+      <a href="/audit/{{ i.id }}" class="audit-row">
+        <div class="audit-row-left">
+          <div class="audit-id">#{{ i.id }}</div>
+          <div>
+            <div class="audit-product">{{ i.product.name }}</div>
+            <div class="audit-request">"{{ i.user_request }}"</div>
+          </div>
+        </div>
+        <div class="audit-row-right">
+          <div class="audit-amount">₹{{ "{:,.2f}".format(i.amount / 100) }}</div>
+          {% if i.policy_result == 'pass' %}<span class="status-pill pill-pass">PASS</span>
+          {% elif i.policy_result == 'approval_required' %}<span class="status-pill pill-approval">{{ i.approval_status|upper }}</span>
+          {% elif i.policy_result == 'fail' %}<span class="status-pill pill-fail">BLOCKED</span>
+          {% else %}<span class="status-pill pill-info">{{ i.policy_result|upper }}</span>{% endif %}
+        </div>
+      </a>
+      {% else %}
+      <p style="color:var(--muted);">No purchase intents yet — go ask the agent for something first.</p>
+      {% endfor %}
+    </div>
+  </main>
+  <script>
+    async function clearHistory() {
+      if (!confirm('This permanently deletes all purchase intents, payments, and audit events. Catalog and policy stay untouched. Continue?')) return;
+      const res = await fetch('/admin/reset-demo-data', { method: 'POST' });
+      if (res.ok) {
+        window.location.reload();
+      } else {
+        alert('Could not clear history — check the server logs.');
+      }
+    }
+  </script>
+</body>
+</html>

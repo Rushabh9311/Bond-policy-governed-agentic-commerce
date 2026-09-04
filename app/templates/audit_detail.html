@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Bond — Intent #{{ intent.id }}</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css?v=4">
+</head>
+<body>
+  <nav class="nav">
+    <a href="/agent-page" class="brand"><div class="mark"></div> bond</a>
+    <div class="links"><a href="/catalog-page">Catalog</a><a href="/agent-page">Ask Agent</a><a href="/audit" class="active">Audit</a><a href="/dashboard">Dashboard</a><a href="/policy-settings">Policies</a><span class="badge">TEST MODE</span></div>
+  </nav>
+  <main>
+    <div class="page-header">
+      <div>
+        <h2>Why did it spend this?</h2>
+        <p><a href="/audit" style="color:var(--muted);">&larr; back to all intents</a></p>
+      </div>
+    </div>
+
+    <div class="intent-summary">
+      <span class="status-tag {% if intent.policy_result == 'pass' %}tag-pass{% elif intent.policy_result == 'approval_required' %}tag-approval{% else %}tag-fail{% endif %}">
+        INTENT #{{ intent.id }}
+      </span>
+      <div class="result-name">{{ intent.product.name }}</div>
+      <div class="result-price">₹{{ "{:,.2f}".format(intent.amount / 100) }}</div>
+      <p class="result-reason"><strong>Request:</strong> "{{ intent.user_request }}"</p>
+      <p class="result-reason"><strong>Agent's reasoning:</strong> {{ intent.reason }}</p>
+      <div class="result-meta" style="margin-top:10px;">
+        policy: {{ intent.policy_result }} · approval: {{ intent.approval_status }} · payment: {{ intent.payment_status }}
+      </div>
+    </div>
+
+    <h3 style="font-size:15px; letter-spacing:-.3px; margin-bottom:16px;">Full event timeline</h3>
+    <div class="timeline">
+      {% for e in events %}
+      <div class="timeline-item">
+        <div class="timeline-dot {{ e.tone }}"></div>
+        <div class="timeline-head">
+          <span class="timeline-type">{{ e.event_type }}</span>
+          <span class="timeline-actor">{{ e.actor }}</span>
+          <span class="timeline-time">{{ e.timestamp.strftime('%H:%M:%S') }}</span>
+        </div>
+        {% if e.payload_json %}
+        <div class="timeline-payload">{{ e.payload_json }}</div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </main>
+</body>
+</html>

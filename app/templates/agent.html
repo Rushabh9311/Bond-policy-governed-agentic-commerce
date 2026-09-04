@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bond — Policy-governed agentic commerce</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css?v=4">
+</head>
+<body>
+  <nav class="nav">
+    <a href="/agent-page" class="brand"><div class="mark"></div> bond</a>
+    <div class="links"><a href="/catalog-page">Catalog</a><a href="/agent-page" class="active">Ask Agent</a><a href="/audit">Audit</a><a href="/dashboard">Dashboard</a><a href="/policy-settings">Policies</a><span class="badge">TEST MODE</span></div>
+  </nav>
+  <main>
+    <section class="hero">
+      <div class="eyebrow"><span class="pulse"></span> Autonomous purchasing, policy-governed</div>
+      <h1><span id="greeting">Good evening</span>.<br><em>What should Bond buy?</em></h1>
+      <p>Bond reasons over a merchant's catalog, checks every purchase against hard spending limits, and only completes what a deterministic policy allows — never the AI's own judgement.</p>
+
+      <div class="ask">
+        <div class="input-wrap">
+          <input id="requestInput" placeholder="e.g. wireless keyboard for programming under ₹2000" />
+          <button class="send" id="send">→</button>
+        </div>
+      </div>
+
+      <div class="mood">
+        <h3>Try asking</h3>
+        <div class="chips">
+          <button class="chip" data-prompt="Wireless keyboard for programming under ₹2000">Wireless keyboard under ₹2000</button>
+          <button class="chip" data-prompt="Noise cancelling headphones">Noise cancelling headphones</button>
+          <button class="chip" data-prompt="16-inch pro laptop">16-inch pro laptop</button>
+        </div>
+      </div>
+
+      <div class="preferences"><span id="statusLine">Policy-checked · Idempotent · Fully audited</span></div>
+    </section>
+
+    <section class="result" id="result">
+      <div class="result-card">
+        <div class="result-visual" id="resultVisual">📦</div>
+        <div class="result-info">
+          <span class="status-tag" id="statusTag"></span>
+          <div class="result-name" id="productName"></div>
+          <div class="result-price" id="productPrice"></div>
+          <p class="result-reason" id="reasoning"></p>
+          <div class="result-meta" id="intentMeta"></div>
+          <div class="actions" id="actions"></div>
+        </div>
+      </div>
+
+      <div class="upsell-card" id="upsellCard">
+        <div class="upsell-label">Suggested add-on</div>
+        <div class="upsell-row">
+          <div class="upsell-info">
+            <div class="upsell-name" id="upsellName"></div>
+            <div class="upsell-reason" id="upsellReason"></div>
+          </div>
+          <div style="display:flex; align-items:center; gap:14px;">
+            <div class="upsell-price" id="upsellPrice"></div>
+            <button class="btn btn-outline" id="upsellBtn" onclick="acceptUpsell()">Add to order</button>
+            <span class="upsell-added" id="upsellAdded">✓ Added</span>
+          </div>
+        </div>
+        <div class="aov-line" id="aovLine"></div>
+      </div>
+    </section>
+
+    <section class="compare">
+      <div>
+        <h2>Built to be trusted, not just fast.</h2>
+        <p>Every purchase is proposed by an LLM, authorized only by a deterministic policy engine, and logged step by step — so any decision can be explained after the fact.</p>
+      </div>
+      <div class="signals">
+        <div class="signal"><strong>3-tier</strong><span>auto-approve / needs approval / blocked</span></div>
+        <div class="signal"><strong>100%</strong><span>of decisions written to the audit ledger</span></div>
+        <div class="signal"><strong>0</strong><span>duplicate charges — idempotent by design</span></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    let currentIntentId = null;
+    let baseAmount = 0;
+    let upsellAmount = 0;
+    const requestInput = document.getElementById('requestInput');
+
+    const hour = new Date().getHours();
+    let timeGreeting = 'Good evening';
+    if (hour < 12) timeGreeting = 'Good morning';
+    else if (hour < 17) timeGreeting = 'Good afternoon';
+    document.getElementById('greeting').textContent = timeGreeting;
+    const statusLine = document.getElementById('statusLine');
+
+    async function sendRequest() {
+      const text = requestInput.value.trim();
+      if (!text) return;
+      const sendButton = document.getElementById('send');
+      statusLine.innerHTML = '<span class="spinner"></span> Bond is reasoning over the catalog…';
+      document.getElementById('result').style.display = 'none';
+      requestInput.disabled = true;
+      sendButton.disabled = true;
+
+      try {
+        const res = await fetch('/agent/request', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ agent_id: 'buyer_agent_1', user_request: text })
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.detail || `Request failed (HTTP ${res.status})`);
+        }
+
+        statusLine.textContent = 'Policy-checked · Idempotent · Fully audited';
+        renderResult(data);
+        setTimeout(() => {
+          const el = document.getElementById('result');
+          const y = el.getBoundingClientRect().top + window.scrollY - 90;
+          window.scrollTo({ top: y, behavior: 'smooth' });
+        }, 100);
+
+      } catch (error) {
+        statusLine.textContent = `Could not get a recommendation: ${error.message}`;
+        console.error('Agent request failed:', error);
+      } finally {
+        requestInput.disabled = false;
+        sendButton.disabled = false;
+        requestInput.focus();
+      }
+    }
+
+    function renderResult(data) {
+      currentIntentId = data.intent_id;
+      document.getElementById('result').style.display = 'block';
+      document.getElementById('productName').textContent = data.product.name;
+      document.getElementById('productPrice').textContent =
+        '₹' + (data.product.price_paise / 100).toLocaleString('en-IN', {minimumFractionDigits: 2});
+      document.getElementById('reasoning').textContent = data.reasoning;
+      document.getElementById('intentMeta').innerHTML = 'intent #' + data.intent_id + ' · ' + data.policy_reason + ' · <a href="/audit/' + data.intent_id + '" style="color:var(--ink);">view full audit trail →</a>';
+
+      const visual = document.getElementById('resultVisual');
+      if (data.product.image_url) {
+        visual.innerHTML = '<img src="' + data.product.image_url + '" alt="' + data.product.name +
+          '" style="width:100%;height:100%;object-fit:contain;padding:20px;">';
+      } else {
+        visual.innerHTML = '📦';
+      }
+      const tag = document.getElementById('statusTag');
+      const actions = document.getElementById('actions');
+      visual.className = 'result-visual';
+      actions.innerHTML = '';
+
+      if (data.policy_result === 'pass') {
+        visual.classList.add('status-pass');
+        tag.className = 'status-tag tag-pass'; tag.textContent = 'AUTO-APPROVED';
+        actions.innerHTML = '<button class="btn" onclick="payNow()">Pay with Razorpay</button>';
+      } else if (data.policy_result === 'approval_required') {
+        visual.classList.add('status-approval');
+        tag.className = 'status-tag tag-approval'; tag.textContent = 'NEEDS HUMAN APPROVAL';
+        actions.innerHTML =
+          '<button class="btn" onclick="approveIntent()">Approve</button>' +
+          '<button class="btn btn-outline" onclick="rejectIntent()">Reject</button>';
+      } else {
+        visual.classList.add('status-fail');
+        tag.className = 'status-tag tag-fail'; tag.textContent = 'BLOCKED BY POLICY';
+        actions.innerHTML = '<button class="btn btn-outline" onclick="resetToAskAgain()">Ask something else</button>';
+      }
+
+      baseAmount = data.product.price_paise;
+      upsellAmount = 0;
+      const upsellCard = document.getElementById('upsellCard');
+      const upsellAdded = document.getElementById('upsellAdded');
+      const upsellBtn = document.getElementById('upsellBtn');
+
+      if (data.upsell) {
+        upsellCard.style.display = 'block';
+        upsellAdded.style.display = 'none';
+        upsellBtn.style.display = 'inline-block';
+        upsellBtn.disabled = false;
+        document.getElementById('upsellName').textContent = data.upsell.name;
+        document.getElementById('upsellReason').textContent = data.upsell.reason;
+        document.getElementById('upsellPrice').textContent =
+          '+ ₹' + (data.upsell.price_paise / 100).toLocaleString('en-IN', {minimumFractionDigits: 2});
+        document.getElementById('aovLine').innerHTML =
+          'Order value: <strong>₹' + (baseAmount / 100).toLocaleString('en-IN') + '</strong>';
+      } else {
+        upsellCard.style.display = 'none';
+      }
+    }
+
+    async function acceptUpsell() {
+      const upsellBtn = document.getElementById('upsellBtn');
+      upsellBtn.disabled = true;
+      const res = await fetch(`/intents/${currentIntentId}/upsell/accept`, { method: 'POST' });
+      const data = await res.json();
+
+      upsellAmount = data.product.price_paise;
+      document.getElementById('upsellBtn').style.display = 'none';
+      document.getElementById('upsellAdded').style.display = 'inline';
+      document.getElementById('aovLine').innerHTML =
+        'Order value: <strong>₹' + (baseAmount / 100).toLocaleString('en-IN') + '</strong> → <strong>₹' +
+        ((baseAmount + upsellAmount) / 100).toLocaleString('en-IN') + '</strong> (+₹' +
+        (upsellAmount / 100).toLocaleString('en-IN') + ' from upsell)';
+    }
+
+    let paymentPollTimer = null;
+    let preAwaitingTagClass = '';
+    let preAwaitingTagText = '';
+    let preAwaitingActionsHTML = '';
+
+    async function payNow() {
+      // Open the tab synchronously (before the await) so browsers don't
+      // treat it as an unsolicited popup and block it.
+      const payWindow = window.open('', '_blank');
+      if (payWindow) {
+        // Show something immediately instead of a blank tab while we wait
+        // on the server's round trip to Razorpay (order + payment link).
+        payWindow.document.write(
+          '<!DOCTYPE html><html><head><title>Redirecting…</title></head>' +
+          '<body style="margin:0;height:100vh;display:flex;align-items:center;justify-content:center;' +
+          'font-family:\'DM Sans\',sans-serif;background:#f5f3ed;color:#1d1d1b;">' +
+          '<div style="text-align:center;">' +
+          '<div style="width:26px;height:26px;margin:0 auto 14px;border:3px solid #ddd;' +
+          'border-top-color:#1d1d1b;border-radius:50%;animation:spin .7s linear infinite;"></div>' +
+          '<p>Redirecting you to Razorpay…</p>' +
+          '</div>' +
+          '<style>@keyframes spin{to{transform:rotate(360deg);}}</style>' +
+          '</body></html>'
+        );
+        payWindow.document.close();
+      }
+
+      const res = await fetch(`/intents/${currentIntentId}/pay`, { method: 'POST' });
+      const data = await res.json();
+      if (payWindow) {
+        payWindow.location = data.payment_link;
+      } else {
+        // Popup blocked anyway — fall back to same-tab navigation.
+        window.location.href = data.payment_link;
+        return;
+      }
+
+      const intentIdAtClick = currentIntentId;
+      const tag = document.getElementById('statusTag');
+      const actions = document.getElementById('actions');
+
+      preAwaitingTagClass = tag.className;
+      preAwaitingTagText = tag.textContent;
+      preAwaitingActionsHTML = actions.innerHTML;
+
+      tag.className = 'status-tag tag-approval';
+      tag.textContent = 'AWAITING PAYMENT…';
+      actions.innerHTML = preAwaitingActionsHTML + ' <button class="btn btn-outline" onclick="cancelPayment()">Cancel</button>';
+
+      // Fallback in case the postMessage listener below doesn't fire for
+      // some reason (e.g. the payment tab was closed manually).
+      clearInterval(paymentPollTimer);
+      let attempts = 0;
+      paymentPollTimer = setInterval(async () => {
+        attempts++;
+        if (attempts > 40) { clearInterval(paymentPollTimer); return; } // ~2 min
+        try {
+          const r = await fetch(`/intents/${intentIdAtClick}`);
+          const d = await r.json();
+          if (d.payment_status === 'paid') {
+            clearInterval(paymentPollTimer);
+            if (intentIdAtClick === currentIntentId) showPaymentConfirmed();
+          }
+        } catch (e) { /* ignore transient errors while polling */ }
+      }, 3000);
+    }
+
+    function cancelPayment() {
+      // Lets the buyer back out of "awaiting payment" — e.g. if the card
+      // was declined on Razorpay's side, or they simply changed their mind.
+      // Restores the card to exactly how it looked before Pay was clicked,
+      // so "Pay with Razorpay" is still there to retry if they want.
+      clearInterval(paymentPollTimer);
+      const tag = document.getElementById('statusTag');
+      tag.className = preAwaitingTagClass;
+      tag.textContent = preAwaitingTagText;
+      document.getElementById('actions').innerHTML = preAwaitingActionsHTML;
+    }
+
+    function showPaymentConfirmed() {
+      clearInterval(paymentPollTimer);
+      const tag = document.getElementById('statusTag');
+      tag.className = 'status-tag tag-pass';
+      tag.textContent = 'PAYMENT CONFIRMED';
+      document.getElementById('actions').innerHTML =
+        '<a class="btn" href="/audit/' + currentIntentId + '">View audit trail →</a>' +
+        '<button class="btn btn-outline" onclick="resetToAskAgain()">Ask something else</button>';
+    }
+
+    function resetToAskAgain() {
+      clearInterval(paymentPollTimer);
+      document.getElementById('result').style.display = 'none';
+      requestInput.value = '';
+      requestInput.focus();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    window.addEventListener('message', (event) => {
+      if (event.data && event.data.type === 'bond-payment-confirmed' && event.data.intent_id === currentIntentId) {
+        showPaymentConfirmed();
+      }
+    });
+    async function approveIntent() {
+      await fetch(`/intents/${currentIntentId}/approve`, { method: 'POST' });
+      document.getElementById('actions').innerHTML = '<button class="btn" onclick="payNow()">Pay with Razorpay</button>';
+      const tag = document.getElementById('statusTag'); tag.className = 'status-tag tag-pass'; tag.textContent = 'APPROVED';
+    }
+    async function rejectIntent() {
+      await fetch(`/intents/${currentIntentId}/reject`, { method: 'POST' });
+      document.getElementById('actions').innerHTML = '<button class="btn btn-outline" onclick="resetToAskAgain()">Ask something else</button>';
+      const tag = document.getElementById('statusTag'); tag.className = 'status-tag tag-fail'; tag.textContent = 'REJECTED';
+    }
+
+    document.getElementById('send').addEventListener('click', sendRequest);
+    requestInput.addEventListener('keydown', e => { if (e.key === 'Enter') sendRequest(); });
+    document.querySelectorAll('[data-prompt]').forEach(btn =>
+      btn.addEventListener('click', () => { requestInput.value = btn.dataset.prompt; sendRequest(); })
+    );
+  </script>
+</body>
+</html>
